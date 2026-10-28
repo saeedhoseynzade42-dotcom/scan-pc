@@ -1,0 +1,1016 @@
+<!doctype html>
+<html lang="fa">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>لرزه‌نگار زمین‌کاو</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one narrow column built around a drum-recorder paper panel; readouts above it, detector and event log below. */
+:root {
+  --bg: #e6ebe7;
+  --paper: #f4f6f2;
+  --panel: #edf1ed;
+  --ink: #162023;
+  --ink-2: #506064;
+  --rule: #c8d0cb;
+  --grid: #e3cdc5;
+  --grid-strong: #cfa99d;
+  --trace: #14262b;
+  --alert: #c23a1d;
+  --ok: #2c7a58;
+  --accent: #1d6b75;
+  --accent-ink: #f4f6f2;
+  --f-display: 'Lalezar', 'Vazirmatn', system-ui, sans-serif;
+  --f-body: 'Vazirmatn', system-ui, 'Segoe UI', Tahoma, sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1315; --paper: #121a1c; --panel: #161f22; --ink: #e4ece9; --ink-2: #97aaa8;
+    --rule: #25312f; --grid: #22302d; --grid-strong: #34463f; --trace: #86e6c4;
+    --alert: #ff7355; --ok: #5fd3a0; --accent: #5cc4cf; --accent-ink: #0e1315;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1315; --paper: #121a1c; --panel: #161f22; --ink: #e4ece9; --ink-2: #97aaa8;
+  --rule: #25312f; --grid: #22302d; --grid-strong: #34463f; --trace: #86e6c4;
+  --alert: #ff7355; --ok: #5fd3a0; --accent: #5cc4cf; --accent-ink: #0e1315;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 15px;
+  line-height: 1.7;
+  padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+#app { max-width: 880px; margin-inline: auto; display: flex; flex-direction: column; gap: 22px; }
+h1 { font-family: var(--f-display); font-weight: 400; font-size: 44px; line-height: 1.1; margin: 0; letter-spacing: 0; }
+h2 { font-size: 15px; font-weight: 800; margin: 0; }
+p { margin: 0; }
+.sub { color: var(--ink-2); font-size: 14px; }
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.state { display: inline-flex; align-items: center; gap: 8px; padding: 4px 14px; border: 1px solid var(--rule); border-radius: 99px; font-weight: 600; font-size: 14px; background: var(--panel); }
+.state .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); }
+.state[data-s="event"] { border-color: var(--alert); color: var(--alert); }
+.state[data-s="event"] .dot { background: var(--alert); animation: pulse 0.9s ease-in-out infinite; }
+.state[data-s="paused"] .dot, .state[data-s="wait"] .dot { background: var(--ink-2); }
+@keyframes pulse { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .state[data-s="event"] .dot { animation: none; } }
+
+.btn { font: inherit; font-weight: 600; font-size: 14px; border: 1px solid var(--rule); background: var(--panel); color: var(--ink); padding: 6px 16px; min-height: 40px; border-radius: 6px; cursor: pointer; }
+.btn:hover { border-color: var(--ink-2); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.btn:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn[hidden] { display: none; }
+
+.ctrl { display: flex; flex-direction: column; gap: 12px; }
+.ctrl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--panel); }
+.seg button { font: inherit; font-size: 14px; font-weight: 600; background: transparent; color: var(--ink-2); border: 0; padding: 6px 14px; min-height: 40px; cursor: pointer; }
+.seg button + button { border-inline-start: 1px solid var(--rule); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.panel { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); }
+.panel[hidden] { display: none; }
+.field { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.field label, .lbl { color: var(--ink-2); font-size: 13px; }
+.field input[type=range] { width: 130px; accent-color: var(--accent); }
+.field input[type=number], .field select { font: inherit; font-size: 14px; background: var(--paper); color: var(--ink); border: 1px solid var(--rule); border-radius: 5px; padding: 4px 8px; min-height: 36px; }
+.field input[type=number] { width: 88px; font-family: var(--f-mono); }
+.field input[type=file] { font: inherit; font-size: 13px; max-width: 100%; color: var(--ink-2); }
+output { font-family: var(--f-mono); font-size: 14px; min-width: 2.6em; text-align: center; }
+.msg { flex-basis: 100%; font-size: 13px; color: var(--ink-2); }
+.msg:empty { display: none; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); margin: 0; border-block: 1px solid var(--rule); }
+.stat { padding: 10px 14px; display: flex; flex-direction: column; gap: 0; min-width: 0; }
+.stat + .stat { border-inline-start: 1px solid var(--rule); }
+.stat dt { color: var(--ink-2); font-size: 12.5px; }
+.stat dd { margin: 0; font-family: var(--f-mono); font-size: 26px; font-weight: 500; line-height: 1.35; font-variant-numeric: tabular-nums; }
+.stat dd small { font-size: 12px; color: var(--ink-2); margin-inline-start: 4px; font-family: var(--f-body); }
+@media (max-width: 520px) { .stat:nth-child(3) { border-inline-start: 0; } .stat:nth-child(n+3) { border-top: 1px solid var(--rule); } }
+
+.paper { background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; direction: ltr; }
+.paper canvas { display: block; width: 100%; }
+.paper .ch + .ch { border-top: 1px solid var(--rule); }
+.c-ch { height: 92px; }
+.c-ratio { height: 64px; }
+.c-spec { height: 130px; }
+.axis { display: flex; justify-content: space-between; padding: 3px 8px 4px; font-family: var(--f-mono); font-size: 11px; color: var(--ink-2); border-top: 1px solid var(--rule); }
+.cap { font-size: 12.5px; color: var(--ink-2); margin-top: 6px; }
+.block { display: flex; flex-direction: column; gap: 8px; }
+.settings { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { font-weight: 600; font-size: 12.5px; color: var(--ink-2); padding: 8px 12px; border-bottom: 1px solid var(--rule); white-space: nowrap; background: var(--panel); text-align: center; }
+td { padding: 7px 12px; border-bottom: 1px solid var(--rule); text-align: center; font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.empty { font-family: var(--f-body); color: var(--ink-2); white-space: normal; padding: 18px 14px; }
+.head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.note { font-size: 12.5px; color: var(--ink-2); }
+.alarm { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 16px; border-radius: 6px; background: var(--alert); color: var(--accent-ink); font-weight: 800; font-size: 16px; }
+.alarm[hidden] { display: none; }
+.alarm .btn { background: transparent; color: var(--accent-ink); border-color: var(--accent-ink); }
+.check { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+body { margin: 0; }
+#app[hidden] { display: none; }
+.promo { max-width: 880px; margin-inline: auto; display: flex; flex-direction: column; gap: 26px; padding-block: 8px 24px; }
+.promo[hidden] { display: none; }
+.eyebrow { font-size: 13px; color: var(--ink-2); font-weight: 600; }
+.hero { font-family: var(--f-display); font-weight: 400; font-size: clamp(46px, 11vw, 84px); line-height: 1.05; margin: 0; text-wrap: balance; }
+.lead { font-size: 17px; max-width: 56ch; }
+.sample { margin: 0; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); overflow: hidden; }
+.sample figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; padding: 8px 12px; font-size: 12.5px; color: var(--ink-2); border-bottom: 1px solid var(--rule); }
+.sample canvas { display: block; width: 100%; height: 150px; }
+.sample .axis { direction: ltr; }
+.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px 28px; margin: 0; padding: 0; list-style: none; }
+.features li { border-top: 1px solid var(--rule); padding-top: 10px; min-width: 0; }
+.features h3 { margin: 0; font-size: 15px; font-weight: 800; }
+.features p { font-size: 13.5px; color: var(--ink-2); }
+.cta { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.cta .btn { font-size: 16px; padding: 8px 26px; min-height: 48px; }
+
+.langbar { max-width: 880px; margin: 0 auto 14px; display: flex; justify-content: flex-end; }
+.langbar select { font: inherit; font-size: 14px; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 6px; padding: 4px 10px; min-height: 40px; }
+.langbar select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<div class="langbar" dir="ltr">
+  <label for="lang" class="sr">Language</label>
+  <select id="lang">
+    <option value="fa">فارسی</option>
+    <option value="en">English</option>
+    <option value="ar">العربية</option>
+    <option value="tr">Türkçe</option>
+  </select>
+</div>
+<section class="promo" id="promo" dir="rtl" lang="fa">
+  <div>
+    <p class="eyebrow">نرم‌افزار ثبت و تحلیل لرزه</p>
+    <h1 class="hero">لرزه‌نگار زمین‌کاو</h1>
+  </div>
+  <p class="lead">زمین را گوش بدهید. ثبت سه‌مؤلفه‌ای شتاب، آشکارسازی خودکار لرزه و آژیر هشدار، همه در یک صفحه که روی گوشی و رایانه اجرا می‌شود.</p>
+  <figure class="sample">
+    <figcaption><span>نمونه ثبت · زلزله شبیه‌سازی‌شده با بزرگی ۴٫۵</span><span dir="ltr">Z · 50 Hz</span></figcaption>
+    <canvas id="sampleCv" aria-label="نمونه لرزه‌نگاشت با ورود موج P و S"></canvas>
+    <div class="axis"><span>0 s</span><span>10</span><span>20</span><span>30</span><span>40</span></div>
+  </figure>
+  <dl class="stats" aria-label="مقادیر نمونه">
+    <div class="stat"><dt>اختلاف S−P</dt><dd><span>5.0</span><small>s</small></dd></div>
+    <div class="stat"><dt>فاصله تقریبی کانون</dt><dd><span>40</span><small>km</small></dd></div>
+    <div class="stat"><dt>شدت تقریبی</dt><dd><span>IV</span><small>MMI</small></dd></div>
+  </dl>
+  <ul class="features">
+    <li><h3>سه محور، هم‌زمان</h3><p>ثبت Z و Y و X در پنجره ۶۰ ثانیه‌ای، با مقیاس خودکار.</p></li>
+    <li><h3>آشکارساز STA/LTA</h3><p>تشخیص خودکار رویداد با آستانه و کمینه دامنه قابل تنظیم.</p></li>
+    <li><h3>آژیر و لرزش</h3><p>هشدار صوتی و لرزش گوشی در لحظه شروع رویداد.</p></li>
+    <li><h3>طیف و گزارش</h3><p>طیف بسامدی، شدت MMI تقریبی و ذخیره رویدادها به‌صورت CSV.</p></li>
+  </ul>
+  <p class="note">ورودی داده: شبیه‌سازی، شتاب‌سنج گوشی (در صورت پشتیبانی مرورگر) یا فایل CSV.</p>
+  <div class="cta"><button type="button" class="btn primary" id="enterBtn">ورود به برنامه</button></div>
+  <p class="note">اعداد این صفحه نمونه‌اند. شدت MMI تقریبی است و این برنامه جایگزین شبکه رسمی لرزه‌نگاری نیست.</p>
+</section>
+
+<div id="app" dir="rtl" lang="fa" hidden>
+  <header class="top">
+    <div>
+      <h1>لرزه‌نگار زمین‌کاو</h1>
+      <p class="sub">ثبت سه‌مؤلفه‌ای، تشخیص خودکار رویداد و طیف بسامدی</p>
+    </div>
+    <div class="state" id="state" data-s="quiet" role="status"><span class="dot"></span><span id="stateText">آرام</span></div>
+  </header>
+
+  <div class="alarm" id="alarmBar" role="alert" hidden>
+    <span>هشدار: لرزه شناسایی شد</span>
+    <button type="button" class="btn" id="muteBtn">قطع صدا</button>
+  </div>
+
+  <section class="ctrl" aria-label="منبع داده">
+    <div class="ctrl-row">
+      <div class="seg" id="srcSeg" role="group" aria-label="منبع داده">
+        <button type="button" data-src="sim" aria-pressed="true">شبیه‌سازی</button>
+        <button type="button" data-src="sensor" aria-pressed="false">حسگر گوشی</button>
+        <button type="button" data-src="csv" aria-pressed="false">فایل CSV</button>
+      </div>
+      <button type="button" class="btn primary" id="runBtn">توقف</button>
+    </div>
+
+    <div class="panel" id="panel-sim">
+      <div class="field">
+        <label for="mag">بزرگی زلزله آزمایشی</label>
+        <input type="range" id="mag" min="2" max="8" step="0.1" value="4.5">
+        <output id="magOut" dir="ltr">4.5</output>
+      </div>
+      <button type="button" class="btn" id="quakeBtn">ایجاد زلزله آزمایشی</button>
+      <p class="msg">سیگنال شبیه‌سازی‌شده است: نوفه زمینه به‌اضافه موج P و S ساختگی. برای آزمودن آشکارساز مناسب است.</p>
+    </div>
+
+    <div class="panel" id="panel-sensor" hidden>
+      <button type="button" class="btn" id="sensorBtn">فعال‌سازی حسگر</button>
+      <p class="msg" id="sensorMsg">دستگاه را روی سطحی ثابت بگذارید. شتاب‌سنج گوشی با بسامد حدود ۵۰ هرتز خوانده می‌شود.</p>
+    </div>
+
+    <div class="panel" id="panel-csv" hidden>
+      <div class="field"><input type="file" id="csvFile" accept=".csv,.txt,.tsv,text/csv,text/plain" aria-label="انتخاب فایل CSV"></div>
+      <div class="field">
+        <label for="unit">واحد</label>
+        <select id="unit"><option value="ms2">m/s²</option><option value="g">g</option><option value="gal">gal</option></select>
+      </div>
+      <div class="field">
+        <label for="csvFs">بسامد نمونه‌برداری (Hz)</label>
+        <input type="number" id="csvFs" min="1" max="5000" step="1" value="100" dir="ltr">
+      </div>
+      <div class="field">
+        <label for="speed">سرعت پخش</label>
+        <select id="speed"><option value="1">۱×</option><option value="5">۵×</option><option value="20">۲۰×</option><option value="100">۱۰۰×</option></select>
+      </div>
+      <p class="msg" id="csvMsg">ستون‌ها: [زمان،] x، y، z یا فقط یک ستون برای محور قائم. ردیف‌های متنی (عنوان) نادیده گرفته می‌شوند.</p>
+    </div>
+  </section>
+
+  <dl class="stats" aria-label="مقادیر لحظه‌ای">
+    <div class="stat"><dt>دامنه (RMS یک ثانیه)</dt><dd><span id="vRms">0.00</span><small>gal</small></dd></div>
+    <div class="stat"><dt>بیشینه ۶۰ ثانیه</dt><dd><span id="vPeak">0.00</span><small>gal</small></dd></div>
+    <div class="stat"><dt>نسبت STA/LTA</dt><dd><span id="vRatio">1.0</span></dd></div>
+    <div class="stat"><dt>بسامد غالب</dt><dd><span id="vFreq">—</span><small>Hz</small></dd></div>
+  </dl>
+
+  <section class="block" aria-label="ثبت موج">
+    <div class="head"><h2>ثبت موج ۶۰ ثانیه‌ای</h2><span class="note" id="scaleNote" dir="ltr"></span></div>
+    <div class="paper" id="paper">
+      <div class="ch"><canvas class="c-ch" id="c0"></canvas></div>
+      <div class="ch"><canvas class="c-ch" id="c1"></canvas></div>
+      <div class="ch"><canvas class="c-ch" id="c2"></canvas></div>
+      <div class="ch"><canvas class="c-ratio" id="c3"></canvas></div>
+      <div class="axis"><span>−60 s</span><span>−50</span><span>−40</span><span>−30</span><span>−20</span><span>−10</span><span>0</span></div>
+    </div>
+    <p class="cap">از بالا: محور Z (قائم)، Y و X (افقی)، و نسبت STA/LTA. نوار قرمز یعنی آشکارساز فعال بوده است. شتاب پس از حذف مؤلفه ثابت (گرانش) نمایش داده می‌شود.</p>
+  </section>
+
+  <section class="block" aria-label="طیف">
+    <div class="head"><h2>طیف دامنه (۵۱۲ نمونه آخر)</h2></div>
+    <div class="paper"><canvas class="c-spec" id="c4"></canvas>
+      <div class="axis"><span>0 Hz</span><span>5</span><span>10</span><span>15</span><span>20</span><span>25</span></div>
+    </div>
+  </section>
+
+  <section class="block" aria-label="آشکارساز">
+    <h2>آشکارساز STA/LTA</h2>
+    <div class="settings">
+      <div class="field">
+        <label for="thr">آستانه نسبت</label>
+        <input type="range" id="thr" min="2" max="10" step="0.5" value="3.5">
+        <output id="thrOut" dir="ltr">3.5</output>
+      </div>
+      <div class="field">
+        <label for="minAmp">کمینه دامنه (gal)</label>
+        <input type="range" id="minAmp" min="0.05" max="2" step="0.05" value="0.15">
+        <output id="minOut" dir="ltr">0.15</output>
+      </div>
+    </div>
+    <div class="settings">
+      <div class="check"><input type="checkbox" id="sirenOn" checked><label for="sirenOn">آژیر هنگام رویداد</label></div>
+      <div class="field">
+        <label for="vol">بلندی صدا</label>
+        <input type="range" id="vol" min="0.05" max="1" step="0.05" value="0.5">
+      </div>
+      <button type="button" class="btn" id="sirenTest">آزمایش آژیر</button>
+    </div>
+    <p class="note">مرورگر فقط بعد از لمس صفحه اجازه پخش صدا می‌دهد. یک بار «آزمایش آژیر» را بزنید تا صدا فعال شود. هنگام هشدار، گوشی هم اگر پشتیبانی کند می‌لرزد.</p>
+  </section>
+
+  <section class="block" aria-label="رویدادها">
+    <div class="head">
+      <h2>رویدادهای ثبت‌شده</h2>
+      <button type="button" class="btn" id="exportBtn" hidden>ذخیره CSV</button>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>زمان ثبت</th><th>بیشینه شتاب (gal)</th><th>شدت MMI تقریبی</th><th>بسامد غالب (Hz)</th><th>مدت (s)</th></tr></thead>
+        <tbody id="evBody"></tbody>
+      </table>
+    </div>
+    <p class="note">شدت MMI با رابطه تجربی ساده از بیشینه شتاب برآورد می‌شود و فقط جنبه راهنما دارد. این برنامه جایگزین شبکه لرزه‌نگاری رسمی نیست.</p>
+  </section>
+</div>
+
+<script>
+(() => {
+'use strict';
+const TR = {"لرزهنگار زمینکاو": ["Zamin-Kav Seismograph", "راصد الزلازل زمين‌كاو", "Zamin-Kav Sismograf"], "نرمافزار ثبت و تحلیل لرزه": ["Seismic recording and analysis software", "برنامج تسجيل وتحليل الهزات الأرضية", "Sismik kayıt ve analiz yazılımı"], "زمین را گوش بدهید. ثبت سهمؤلفهای شتاب، آشکارسازی خودکار لرزه و آژیر هشدار، همه در یک صفحه که روی گوشی و رایانه اجرا میشود.": ["Listen to the ground. Three-axis acceleration recording, automatic quake detection and an alarm, all on one page that runs on phones and computers.", "أنصتوا إلى الأرض. تسجيل التسارع على ثلاثة محاور، وكشف تلقائي للهزات، وإنذار تحذيري، كل ذلك في صفحة واحدة تعمل على الهاتف والحاسوب.", "Yeri dinleyin. Üç eksenli ivme kaydı, otomatik deprem tespiti ve alarm; hepsi telefonda ve bilgisayarda çalışan tek bir sayfada."], "نمونه ثبت · زلزله شبیهسازیشده با بزرگی ۴٫۵": ["Sample record · simulated earthquake, magnitude 4.5", "تسجيل نموذجي · زلزال محاكى بقوة 4.5", "Örnek kayıt · simüle edilmiş deprem, büyüklük 4.5"], "اختلاف S−P": ["S−P difference", "فارق S−P", "S−P farkı"], "فاصله تقریبی کانون": ["Approx. focal distance", "المسافة التقريبية إلى البؤرة", "Yaklaşık odak uzaklığı"], "شدت تقریبی": ["Approx. intensity", "الشدة التقريبية", "Yaklaşık şiddet"], "سه محور، همزمان": ["Three axes, simultaneously", "ثلاثة محاور في آن واحد", "Üç eksen, eş zamanlı"], "ثبت Z و Y و X در پنجره ۶۰ ثانیهای، با مقیاس خودکار.": ["Records Z, Y and X in a 60-second window with automatic scaling.", "يسجّل المحاور Z وY وX في نافذة مدتها 60 ثانية مع تحجيم تلقائي.", "Z, Y ve X eksenlerini 60 saniyelik pencerede otomatik ölçekle kaydeder."], "آشکارساز STA/LTA": ["STA/LTA detector", "كاشف STA/LTA", "STA/LTA dedektörü"], "تشخیص خودکار رویداد با آستانه و کمینه دامنه قابل تنظیم.": ["Automatic event detection with adjustable threshold and minimum amplitude.", "كشف تلقائي للأحداث بعتبة وحدّ أدنى للسعة قابلين للضبط.", "Ayarlanabilir eşik ve en küçük genlikle otomatik olay tespiti."], "آژیر و لرزش": ["Siren and vibration", "صفارة واهتزاز", "Siren ve titreşim"], "هشدار صوتی و لرزش گوشی در لحظه شروع رویداد.": ["An audible alarm and phone vibration the moment an event starts.", "إنذار صوتي واهتزاز للهاتف لحظة بدء الحدث.", "Olay başladığı anda sesli alarm ve telefon titreşimi."], "طیف و گزارش": ["Spectrum and report", "الطيف والتقرير", "Spektrum ve rapor"], "طیف بسامدی، شدت MMI تقریبی و ذخیره رویدادها بهصورت CSV.": ["Frequency spectrum, approximate MMI intensity and events saved as CSV.", "الطيف الترددي، وشدة MMI التقريبية، وحفظ الأحداث بصيغة CSV.", "Frekans spektrumu, yaklaşık MMI şiddeti ve olayların CSV olarak kaydı."], "ورودی داده: شبیهسازی، شتابسنج گوشی (در صورت پشتیبانی مرورگر) یا فایل CSV.": ["Data input: simulation, the phone accelerometer (if the browser supports it) or a CSV file.", "مصدر البيانات: المحاكاة، أو مقياس تسارع الهاتف (إن دعمه المتصفح)، أو ملف CSV.", "Veri girişi: simülasyon, telefonun ivmeölçeri (tarayıcı destekliyorsa) veya CSV dosyası."], "ورود به برنامه": ["Open the app", "دخول التطبيق", "Uygulamayı aç"], "اعداد این صفحه نمونهاند. شدت MMI تقریبی است و این برنامه جایگزین شبکه رسمی لرزهنگاری نیست.": ["The numbers on this page are samples. MMI intensity is approximate, and this app is not a substitute for an official seismic network.", "الأرقام في هذه الصفحة أمثلة فقط. شدة MMI تقريبية، ولا يغني هذا التطبيق عن شبكة الرصد الزلزالي الرسمية.", "Bu sayfadaki sayılar örnektir. MMI şiddeti yaklaşıktır ve bu uygulama resmî sismik ağın yerini tutmaz."], "ثبت سهمؤلفهای، تشخیص خودکار رویداد و طیف بسامدی": ["Three-component recording, automatic event detection and frequency spectrum", "تسجيل ثلاثي المركبات، وكشف تلقائي للأحداث، وطيف ترددي", "Üç bileşenli kayıt, otomatik olay tespiti ve frekans spektrumu"], "آرام": ["Quiet", "هادئ", "Sakin"], "هشدار: لرزه شناسایی شد": ["Alert: earthquake detected", "تنبيه: تم رصد هزة أرضية", "Uyarı: deprem algılandı"], "قطع صدا": ["Mute", "كتم الصوت", "Sesi kapat"], "شبیهسازی": ["Simulation", "محاكاة", "Simülasyon"], "حسگر گوشی": ["Phone sensor", "حساس الهاتف", "Telefon sensörü"], "فایل CSV": ["CSV file", "ملف CSV", "CSV dosyası"], "توقف": ["Pause", "إيقاف مؤقت", "Duraklat"], "ادامه": ["Resume", "متابعة", "Devam"], "پخش دوباره": ["Replay", "إعادة التشغيل", "Yeniden oynat"], "بزرگی زلزله آزمایشی": ["Test earthquake magnitude", "قوة الزلزال التجريبي", "Deneme depremi büyüklüğü"], "ایجاد زلزله آزمایشی": ["Create test earthquake", "إنشاء زلزال تجريبي", "Deneme depremi oluştur"], "سیگنال شبیهسازیشده است: نوفه زمینه بهاضافه موج P و S ساختگی. برای آزمودن آشکارساز مناسب است.": ["The signal is simulated: background noise plus artificial P and S waves. Useful for testing the detector.", "الإشارة محاكاة: ضجيج خلفية مع موجتي P وS اصطناعيتين. مفيدة لاختبار الكاشف.", "Sinyal simüledir: arka plan gürültüsü ile yapay P ve S dalgaları. Dedektörü denemek için uygundur."], "فعالسازی حسگر": ["Enable sensor", "تفعيل الحساس", "Sensörü etkinleştir"], "دستگاه را روی سطحی ثابت بگذارید. شتابسنج گوشی با بسامد حدود ۵۰ هرتز خوانده میشود.": ["Place the device on a steady surface. The phone accelerometer is read at about 50 Hz.", "ضع الجهاز على سطح ثابت. تُقرأ بيانات مقياس التسارع في الهاتف بمعدل 50 هرتز تقريباً.", "Cihazı sabit bir yüzeye koyun. Telefonun ivmeölçeri yaklaşık 50 Hz ile okunur."], "واحد": ["Unit", "الوحدة", "Birim"], "بسامد نمونهبرداری (Hz)": ["Sampling rate (Hz)", "معدل أخذ العينات (Hz)", "Örnekleme hızı (Hz)"], "سرعت پخش": ["Playback speed", "سرعة التشغيل", "Oynatma hızı"], "۱×": ["1×", "1×", "1×"], "۵×": ["5×", "5×", "5×"], "۲۰×": ["20×", "20×", "20×"], "۱۰۰×": ["100×", "100×", "100×"], "ستونها: [زمان،] x، y، z یا فقط یک ستون برای محور قائم. ردیفهای متنی (عنوان) نادیده گرفته میشوند.": ["Columns: [time,] x, y, z, or a single column for the vertical axis. Text rows (headers) are ignored.", "الأعمدة: [الزمن،] x وy وz، أو عمود واحد للمحور الرأسي. تُتجاهل الصفوف النصية (العناوين).", "Sütunlar: [zaman,] x, y, z veya dikey eksen için tek sütun. Metin satırları (başlıklar) yok sayılır."], "دامنه (RMS یک ثانیه)": ["Amplitude (1 s RMS)", "السعة (RMS لثانية)", "Genlik (1 sn RMS)"], "بیشینه ۶۰ ثانیه": ["60 s peak", "الذروة خلال 60 ثانية", "60 sn zirve"], "نسبت STA/LTA": ["STA/LTA ratio", "نسبة STA/LTA", "STA/LTA oranı"], "بسامد غالب": ["Dominant frequency", "التردد السائد", "Baskın frekans"], "ثبت موج ۶۰ ثانیهای": ["60-second waveform record", "تسجيل الموجة لمدة 60 ثانية", "60 saniyelik dalga kaydı"], "از بالا: محور Z (قائم)، Y و X (افقی)، و نسبت STA/LTA. نوار قرمز یعنی آشکارساز فعال بوده است. شتاب پس از حذف مؤلفه ثابت (گرانش) نمایش داده میشود.": ["From top: Z axis (vertical), Y and X (horizontal), and the STA/LTA ratio. A red band means the detector was active. Acceleration is shown after removing the constant component (gravity).", "من الأعلى: المحور Z (الرأسي)، وY وX (الأفقيان)، ونسبة STA/LTA. الشريط الأحمر يعني أن الكاشف كان فعالاً. يُعرض التسارع بعد إزالة المركّبة الثابتة (الجاذبية).", "Yukarıdan aşağıya: Z ekseni (dikey), Y ve X (yatay) ve STA/LTA oranı. Kırmızı şerit dedektörün etkin olduğunu gösterir. İvme, sabit bileşen (yer çekimi) çıkarıldıktan sonra gösterilir."], "طیف دامنه (۵۱۲ نمونه آخر)": ["Amplitude spectrum (last 512 samples)", "طيف السعة (آخر 512 عينة)", "Genlik spektrumu (son 512 örnek)"], "آستانه نسبت": ["Ratio threshold", "عتبة النسبة", "Oran eşiği"], "کمینه دامنه (gal)": ["Minimum amplitude (gal)", "الحد الأدنى للسعة (gal)", "En küçük genlik (gal)"], "آژیر هنگام رویداد": ["Siren on event", "صفارة عند الحدث", "Olayda siren"], "بلندی صدا": ["Volume", "مستوى الصوت", "Ses düzeyi"], "آزمایش آژیر": ["Test siren", "اختبار الصفارة", "Sireni dene"], "مرورگر فقط بعد از لمس صفحه اجازه پخش صدا میدهد. یک بار «آزمایش آژیر» را بزنید تا صدا فعال شود. هنگام هشدار، گوشی هم اگر پشتیبانی کند میلرزد.": ["The browser only allows sound after you touch the page. Press “Test siren” once to enable audio. On an alert the phone also vibrates if supported.", "لا يسمح المتصفح بتشغيل الصوت إلا بعد لمس الصفحة. اضغط «اختبار الصفارة» مرة واحدة لتفعيل الصوت. عند التنبيه يهتز الهاتف أيضاً إن كان يدعم ذلك.", "Tarayıcı, sayfaya dokunmadan ses çalmaya izin vermez. Sesi etkinleştirmek için bir kez «Sireni dene»ye basın. Uyarı sırasında destekleniyorsa telefon da titrer."], "رویدادهای ثبتشده": ["Recorded events", "الأحداث المسجلة", "Kaydedilen olaylar"], "ذخیره CSV": ["Save CSV", "حفظ CSV", "CSV kaydet"], "زمان ثبت": ["Record time", "وقت التسجيل", "Kayıt zamanı"], "بیشینه شتاب (gal)": ["Peak acceleration (gal)", "أقصى تسارع (gal)", "Tepe ivme (gal)"], "شدت MMI تقریبی": ["Approx. MMI intensity", "شدة MMI التقريبية", "Yaklaşık MMI şiddeti"], "بسامد غالب (Hz)": ["Dominant frequency (Hz)", "التردد السائد (Hz)", "Baskın frekans (Hz)"], "مدت (s)": ["Duration (s)", "المدة (s)", "Süre (s)"], "شدت MMI با رابطه تجربی ساده از بیشینه شتاب برآورد میشود و فقط جنبه راهنما دارد. این برنامه جایگزین شبکه لرزهنگاری رسمی نیست.": ["MMI intensity is estimated from peak acceleration with a simple empirical relation and is for guidance only. This app is not a substitute for an official seismic network.", "تُقدَّر شدة MMI من أقصى تسارع بعلاقة تجريبية بسيطة وهي للاسترشاد فقط. لا يغني هذا التطبيق عن شبكة الرصد الزلزالي الرسمية.", "MMI şiddeti, tepe ivmeden basit bir deneysel bağıntıyla kestirilir ve yalnızca yol göstericidir. Bu uygulama resmî sismik ağın yerini tutmaz."], "نمونه لرزهنگاشت با ورود موج P و S": ["Sample seismogram showing P and S wave arrivals", "مخطط زلزالي نموذجي يظهر وصول موجتي P وS", "P ve S dalgası varışlarını gösteren örnek sismogram"], "مقادیر نمونه": ["Sample values", "قيم نموذجية", "Örnek değerler"], "منبع داده": ["Data source", "مصدر البيانات", "Veri kaynağı"], "انتخاب فایل CSV": ["Choose CSV file", "اختيار ملف CSV", "CSV dosyası seç"], "مقادیر لحظهای": ["Live values", "القيم اللحظية", "Anlık değerler"], "ثبت موج": ["Waveform record", "تسجيل الموجة", "Dalga kaydı"], "طیف": ["Spectrum", "الطيف", "Spektrum"], "آشکارساز": ["Detector", "الكاشف", "Dedektör"], "رویدادها": ["Events", "الأحداث", "Olaylar"], "دسترسی به حسگر حرکت داده نشد. در تنظیمات مرورگر اجازه دهید و دوباره تلاش کنید.": ["Motion sensor access was denied. Allow it in the browser settings and try again.", "لم يُمنح الوصول إلى حساس الحركة. اسمح به في إعدادات المتصفح وحاول مجدداً.", "Hareket sensörü erişimi verilmedi. Tarayıcı ayarlarından izin verip tekrar deneyin."], "درخواست دسترسی به حسگر انجام نشد.": ["The sensor access request failed.", "تعذّر طلب الوصول إلى الحساس.", "Sensör erişim isteği yapılamadı."], "در انتظار داده از حسگر…": ["Waiting for sensor data…", "في انتظار بيانات الحساس…", "Sensörden veri bekleniyor…"], "حسگر دادهای نفرستاد. مرورگر یا دستگاه اجازه خواندن شتابسنج را نمیدهد (شاید لازم باشد صفحه با https باز شود). داده شتاب را با برنامهای مانند Phyphox ضبط کنید، بهصورت CSV ذخیره کنید و از بخش «فایل CSV» بارگذاری کنید.": ["The sensor sent no data. Your browser or device does not allow reading the accelerometer (the page may need to be opened over https). Record acceleration with an app such as Phyphox, save it as CSV and load it from the “CSV file” section.", "لم يرسل الحساس أي بيانات. لا يسمح المتصفح أو الجهاز بقراءة مقياس التسارع (قد يلزم فتح الصفحة عبر https). سجّل التسارع ببرنامج مثل Phyphox واحفظه بصيغة CSV وحمّله من قسم «ملف CSV».", "Sensör veri göndermedi. Tarayıcınız veya cihazınız ivmeölçerin okunmasına izin vermiyor (sayfanın https üzerinden açılması gerekebilir). İvmeyi Phyphox gibi bir uygulamayla kaydedip CSV olarak saklayın ve «CSV dosyası» bölümünden yükleyin."], "فایل کوتاهتر از ۵ ثانیه است. فایل بلندتری انتخاب کنید یا بسامد نمونهبرداری را بررسی کنید.": ["The file is shorter than 5 seconds. Choose a longer file or check the sampling rate.", "الملف أقصر من 5 ثوانٍ. اختر ملفاً أطول أو تحقق من معدل أخذ العينات.", "Dosya 5 saniyeden kısa. Daha uzun bir dosya seçin veya örnekleme hızını kontrol edin."], "هیچ ردیف عددی در فایل پیدا نشد.": ["No numeric rows were found in the file.", "لم يُعثر على أي صف رقمي في الملف.", "Dosyada sayısal satır bulunamadı."], "خواندن فایل ممکن نشد.": ["The file could not be read.", "تعذّرت قراءة الملف.", "Dosya okunamadı."], "آستانه": ["Threshold", "العتبة", "Eşik"], "مقیاس کامل": ["Full scale", "المقياس الكامل", "Tam ölçek"], "فایلی انتخاب نشده": ["No file selected", "لم يتم اختيار ملف", "Dosya seçilmedi"], "در انتظار حسگر": ["Waiting for sensor", "في انتظار الحساس", "Sensör bekleniyor"], "پایان فایل": ["End of file", "نهاية الملف", "Dosya sonu"], "متوقف": ["Paused", "متوقف", "Duraklatıldı"], "رویداد لرزهای": ["Seismic event", "حدث زلزالي", "Sismik olay"], "هنوز رویدادی ثبت نشده است. «زلزله آزمایشی» را بزنید یا فایل داده بارگذاری کنید.": ["No events recorded yet. Press “Create test earthquake” or load a data file.", "لم يُسجَّل أي حدث بعد. اضغط «إنشاء زلزال تجريبي» أو حمّل ملف بيانات.", "Henüz kaydedilmiş olay yok. «Deneme depremi oluştur»a basın veya bir veri dosyası yükleyin."]};
+const IDX = { en: 0, ar: 1, tr: 2 };
+const DIR = { fa: 'rtl', en: 'ltr', ar: 'rtl', tr: 'ltr' };
+const FA = /[؀-ۿ]/;
+const norm = s => s.replace(/‌/g, '').replace(/\s+/g, ' ').trim();
+let lang = 'fa';
+try { const sv = localStorage.getItem('zk-lang'); if (sv && DIR[sv]) lang = sv; } catch (e) { /* storage blocked */ }
+const listeners = [];
+function t(fa) { if (lang === 'fa') return fa; const e = TR[norm(fa)]; return e ? e[IDX[lang]] : fa; }
+const M = {
+  csvInfo(rows, nch, dur) {
+    if (lang === 'en') return rows + ' rows, ' + nch + ' data columns, playback length ' + dur + ' (min:sec). If a time column was present the sampling rate was estimated from it; otherwise check the value above.';
+    if (lang === 'ar') return rows + ' صفاً، ' + nch + ' أعمدة بيانات، مدة التشغيل ' + dur + ' (دقيقة:ثانية). إن وُجد عمود زمن فقد قُدّر منه معدل أخذ العينات، وإلا فتحقق من القيمة أعلاه.';
+    if (lang === 'tr') return rows + ' satır, ' + nch + ' veri sütunu, oynatma süresi ' + dur + ' (dk:sn). Zaman sütunu varsa örnekleme hızı ondan kestirildi; yoksa yukarıdaki değeri kontrol edin.';
+    return rows + ' ردیف، ' + nch + ' ستون داده، مدت پخش ' + dur + ' (دقیقه:ثانیه). اگر ستون زمان وجود داشت، بسامد نمونه‌برداری از آن برآورد شد؛ در غیر این صورت مقدار بالا را بررسی کنید.';
+  }
+};
+function apply() {
+  document.documentElement.lang = lang;
+  for (const id of ['promo', 'app']) { const el = document.getElementById(id); if (el) { el.dir = DIR[lang]; el.lang = lang; } }
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  let n;
+  while ((n = w.nextNode())) {
+    const p = n.parentElement;
+    if (!p || p.closest('.langbar') || p.tagName === 'SCRIPT' || p.tagName === 'STYLE') continue;
+    if (n._fa === undefined) {
+      const tx = n.nodeValue.trim();
+      n._fa = tx && FA.test(tx) ? tx : null;
+      if (n._fa) { n._lead = n.nodeValue.match(/^\s*/)[0]; n._trail = n.nodeValue.match(/\s*$/)[0]; }
+    }
+    if (n._fa) n.nodeValue = n._lead + t(n._fa) + n._trail;
+  }
+  document.querySelectorAll('[aria-label]').forEach(el => {
+    if (el.closest('.langbar')) return;
+    if (el._faAria === undefined) { const v = el.getAttribute('aria-label'); el._faAria = FA.test(v) ? v : null; }
+    if (el._faAria) el.setAttribute('aria-label', t(el._faAria));
+  });
+  document.title = t('لرزه‌نگار زمین‌کاو');
+  listeners.forEach(f => f());
+}
+window.I18N = { t, M, onChange: f => listeners.push(f) };
+const sel = document.getElementById('lang');
+sel.value = lang;
+sel.addEventListener('change', () => {
+  lang = sel.value;
+  try { localStorage.setItem('zk-lang', lang); } catch (e) { /* storage blocked */ }
+  apply();
+});
+apply();
+})();
+</script>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const t = window.I18N.t, M = window.I18N.M;
+function setMsg(el, fn) { el._msgFn = fn; el.textContent = fn(); }
+const FS = 50, WIN = 60, N = FS * WIN, FFT_N = 512, NB = 256;
+const HP_A = (() => { const rc = 1 / (2 * Math.PI * 0.3), dt = 1 / FS; return rc / (rc + dt); })();
+const A_S = 1 / (FS * 1.0);
+const A_L = 1 / (FS * 30);
+const LTA_N = FS * 30;
+const DETR = 1.5;
+const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X'];
+
+// ---------- state ----------
+const buf = [new Float32Array(N), new Float32Array(N), new Float32Array(N)]; // z, y, x (high-passed, gal)
+const magBuf = new Float32Array(N);
+const ratioBuf = new Float32Array(N);
+const flag = new Uint8Array(N);
+let total = 0, nSamp = 0, sta = 0, lta = 0, ratioNow = 1;
+let trig = false, ev = null;
+const hp = [0, 0, 0], prev = [0, 0, 0];
+let hpInit = false;
+const events = [];
+const quakes = [];
+let src = 'sim', running = true, acc = 0;
+let scale = 0.4, dirty = true;
+const spec = new Float32Array(NB);
+let specScale = 0.1, lastFft = 0;
+let thr = 3.5, minAmp = 0.15;
+
+let sensorLatest = null, sensorListening = false;
+let csvData = null, csvLen = 0, csvPos = 0, rawCsv = null, csvEnded = false;
+
+// ---------- helpers ----------
+function gauss() { let u = 0, v = 0; while (u === 0) u = Math.random(); v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function fmt(v) { return v < 10 ? v.toFixed(2) : v < 100 ? v.toFixed(1) : v.toFixed(0); }
+function mmss(s) { const m = Math.floor(s / 60), r = Math.floor(s % 60); return String(m).padStart(2, '0') + ':' + String(r).padStart(2, '0'); }
+function mmi(pga) {
+  if (pga < 1) return '<I';
+  const m = pga < 65 ? 1 + 2.2 * Math.log10(pga) : -1.66 + 3.66 * Math.log10(pga);
+  return ROMAN[Math.max(1, Math.min(10, Math.round(m))) - 1];
+}
+
+// ---------- FFT ----------
+const win = new Float64Array(FFT_N); let winSum = 0;
+for (let i = 0; i < FFT_N; i++) { win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (FFT_N - 1)); winSum += win[i]; }
+const re = new Float64Array(FFT_N), im = new Float64Array(FFT_N), pw = new Float64Array(NB), ampNow = new Float32Array(NB);
+function fft(re, im) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang), half = len >> 1;
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let j = 0; j < half; j++) {
+        const a = i + j, b = a + half;
+        const vr = re[b] * cr - im[b] * ci, vi = re[b] * ci + im[b] * cr;
+        re[b] = re[a] - vr; im[b] = im[a] - vi;
+        re[a] += vr; im[a] += vi;
+        const ncr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = ncr;
+      }
+    }
+  }
+}
+function fftUpdate() {
+  if (total < FFT_N) return;
+  pw.fill(0);
+  for (let c = 0; c < 3; c++) {
+    for (let i = 0; i < FFT_N; i++) { re[i] = buf[c][(total - FFT_N + i) % N] * win[i]; im[i] = 0; }
+    fft(re, im);
+    for (let k = 0; k < NB; k++) pw[k] += re[k] * re[k] + im[k] * im[k];
+  }
+  for (let k = 0; k < NB; k++) {
+    ampNow[k] = 2 * Math.sqrt(pw[k]) / winSum;
+    spec[k] = spec[k] * 0.6 + ampNow[k] * 0.4;
+    if (trig && ev) ev.spec[k] += ampNow[k];
+  }
+  if (trig && ev) ev.nspec++;
+}
+const K_LO = 8, K_HI = 245;
+function argmaxRange(a) {
+  let bi = -1, bv = 0;
+  for (let k = K_LO; k <= K_HI; k++) if (a[k] > bv) { bv = a[k]; bi = k; }
+  return { k: bi, v: bv };
+}
+
+// ---------- siren ----------
+let actx = null, siren = null, sirenMuted = false, silent = false;
+function ensureAudio() {
+  if (!actx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    try { actx = new AC(); } catch (err) { return null; }
+  }
+  if (actx.state === 'suspended') actx.resume().catch(() => {});
+  return actx;
+}
+function startSiren() {
+  if (siren || sirenMuted) return;
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  try {
+    const osc = ctx.createOscillator(), lfo = ctx.createOscillator(), lfoG = ctx.createGain(), g = ctx.createGain();
+    osc.type = 'square'; osc.frequency.value = 900;
+    lfo.frequency.value = 1.4; lfoG.gain.value = 320;
+    lfo.connect(lfoG); lfoG.connect(osc.frequency);
+    g.gain.value = 0; osc.connect(g); g.connect(ctx.destination);
+    osc.start(); lfo.start();
+    g.gain.linearRampToValueAtTime(parseFloat($('vol').value) * 0.4, ctx.currentTime + 0.05);
+    siren = { osc, lfo, g };
+  } catch (err) { siren = null; }
+}
+function stopSiren() {
+  if (!siren || !actx) { siren = null; return; }
+  const s = siren; siren = null;
+  try {
+    const t = actx.currentTime;
+    s.g.gain.cancelScheduledValues(t); s.g.gain.setValueAtTime(s.g.gain.value, t); s.g.gain.linearRampToValueAtTime(0, t + 0.15);
+    s.osc.stop(t + 0.2); s.lfo.stop(t + 0.2);
+  } catch (err) { /* already stopped */ }
+}
+function alarmStart() {
+  if ($('sirenOn').checked) startSiren();
+  try { if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]); } catch (err) { /* unsupported */ }
+}
+function alarmEnd() { stopSiren(); sirenMuted = false; }
+
+// ---------- detector ----------
+function step(x, y, z) {
+  const r = [z, y, x];
+  if (!hpInit) { for (let i = 0; i < 3; i++) prev[i] = r[i]; hpInit = true; }
+  for (let i = 0; i < 3; i++) { hp[i] = HP_A * (hp[i] + r[i] - prev[i]); prev[i] = r[i]; }
+  const idx = total % N;
+  buf[0][idx] = hp[0]; buf[1][idx] = hp[1]; buf[2][idx] = hp[2];
+  const e = hp[0] * hp[0] + hp[1] * hp[1] + hp[2] * hp[2];
+  const mag = Math.sqrt(e);
+  magBuf[idx] = mag;
+  nSamp++;
+  sta += (e - sta) * A_S;
+  if (!trig) lta += (e - lta) * (nSamp < LTA_N ? 1 / nSamp : A_L);
+  const ratio = Math.sqrt(sta) / Math.sqrt(Math.max(lta, 0.0025));
+  ratioNow = ratio;
+  ratioBuf[idx] = ratio;
+  if (!trig && nSamp > FS * 10 && ratio > thr && Math.sqrt(sta) > minAmp) {
+    trig = true;
+    ev = { t0: total, peak: 0, spec: new Float32Array(NB), nspec: 0, quiet: 0 };
+    if (!silent) alarmStart();
+  }
+  flag[idx] = trig ? 1 : 0;
+  if (trig) {
+    if (mag > ev.peak) ev.peak = mag;
+    if (ratio < DETR) ev.quiet++; else ev.quiet = 0;
+    if (ev.quiet >= FS * 1.5 || total - ev.t0 > FS * 600) finishEvent();
+  }
+  total++;
+}
+function finishEvent() {
+  if (!ev) { trig = false; return; }
+  const dur = (total - ev.t0) / FS - (ev.quiet / FS);
+  if (dur >= 1) {
+    let f = null;
+    if (ev.nspec > 0) { const m = argmaxRange(ev.spec); if (m.k > 0) f = m.k * FS / FFT_N; }
+    events.unshift({ t: ev.t0 / FS, pga: ev.peak, mmi: mmi(ev.peak), f, dur });
+    if (events.length > 50) events.pop();
+    renderEvents();
+  }
+  trig = false; ev = null;
+  alarmEnd();
+}
+
+// ---------- simulation ----------
+const noisePh = [0, 1, 2, 3, 4, 5].map(() => Math.random() * 6.283);
+function simQuake(M, delay = 0) {
+  const A = Math.pow(10, 0.5 * M - 1.6);
+  quakes.push({
+    t0: total + delay, A, sp: 2.5 + 0.4 * M, tau: 1.0 + 0.8 * M,
+    fp: 8 + Math.random() * 3, fs: Math.max(1, 5.5 - 0.5 * M),
+    ph: [0, 1, 2].map(() => Math.random() * 6.283), ph2: [0, 1, 2].map(() => Math.random() * 6.283), ph3: [0, 1, 2].map(() => Math.random() * 6.283)
+  });
+}
+const PW = [0.45, 0.45, 1], SW = [1, 0.85, 0.5]; // x, y, z
+function simSample() {
+  const t = total / FS, out = [0, 0, 0];
+  const micro = 0.03 * Math.sin(6.283 * 0.21 * t + noisePh[0]) + 0.02 * Math.sin(6.283 * 0.37 * t + noisePh[1]);
+  for (let c = 0; c < 3; c++) out[c] = micro + 0.04 * gauss() + 0.015 * Math.sin(6.283 * 7.9 * t + noisePh[2 + c]);
+  for (let qi = quakes.length - 1; qi >= 0; qi--) {
+    const q = quakes[qi], tt = (total - q.t0) / FS;
+    if (tt < 0) continue;
+    if (tt > q.sp + 6 * q.tau) { quakes.splice(qi, 1); continue; }
+    const p = (1 - Math.exp(-tt / 0.2)) * Math.exp(-tt / 0.8);
+    const ts = tt - q.sp;
+    const s = ts > 0 ? (1 - Math.exp(-ts / 0.4)) * Math.exp(-ts / q.tau) : 0;
+    for (let c = 0; c < 3; c++) {
+      out[c] += q.A * 0.22 * p * PW[c] * Math.sin(6.283 * q.fp * tt + q.ph[c]);
+      if (s > 0) out[c] += q.A * s * SW[c] * (0.6 * Math.sin(6.283 * q.fs * ts + q.ph2[c]) + 0.4 * Math.sin(6.283 * q.fs * 1.45 * ts + q.ph3[c]) + 0.25 * gauss());
+    }
+  }
+  return out;
+}
+
+// ---------- sensor ----------
+function onMotion(e) {
+  const a = e.accelerationIncludingGravity;
+  if (a && a.x != null && a.y != null && a.z != null) sensorLatest = [a.x * 100, a.y * 100, a.z * 100];
+}
+async function enableSensor() {
+  const msg = $('sensorMsg');
+  try {
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      const r = await DeviceMotionEvent.requestPermission();
+      if (r !== 'granted') { setMsg(msg, () => t('دسترسی به حسگر حرکت داده نشد. در تنظیمات مرورگر اجازه دهید و دوباره تلاش کنید.')); return; }
+    }
+  } catch (err) { setMsg(msg, () => t('درخواست دسترسی به حسگر انجام نشد.')); return; }
+  if (!sensorListening) { window.addEventListener('devicemotion', onMotion); sensorListening = true; }
+  setMsg(msg, () => t('در انتظار داده از حسگر…'));
+  setTimeout(() => {
+    if (src === 'sensor' && !sensorLatest) {
+      setMsg(msg, () => t('حسگر داده‌ای نفرستاد. مرورگر یا دستگاه اجازه خواندن شتاب‌سنج را نمی‌دهد (شاید لازم باشد صفحه با https باز شود). داده شتاب را با برنامه‌ای مانند Phyphox ضبط کنید، به‌صورت CSV ذخیره کنید و از بخش «فایل CSV» بارگذاری کنید.'));
+    }
+  }, 2000);
+}
+
+// ---------- CSV ----------
+function parseCsv(text) {
+  const rows = [];
+  for (const ln of text.split(/\r?\n/)) {
+    const t = ln.trim();
+    if (!t) continue;
+    const nums = t.split(/[,;\t ]+/).filter(s => s !== '').map(Number);
+    if (nums.length && nums.every(Number.isFinite)) rows.push(nums);
+  }
+  if (!rows.length) return null;
+  const cols = rows[0].length;
+  const good = rows.filter(r => r.length === cols);
+  const n = good.length;
+  let timeCol = false;
+  if (cols >= 2 && n > 2) {
+    timeCol = true;
+    for (let i = 1; i < n; i++) if (!(good[i][0] > good[i - 1][0])) { timeCol = false; break; }
+    if (cols === 3) timeCol = false; // x,y,z ambiguity: treat as data
+  }
+  const off = timeCol ? 1 : 0;
+  const nch = Math.min(3, cols - off);
+  const ch = [new Float64Array(n), new Float64Array(n), new Float64Array(n)];
+  for (let i = 0; i < n; i++) for (let c = 0; c < nch; c++) ch[c][i] = good[i][off + c];
+  // one channel -> vertical (z); two -> x,y
+  let data = ch;
+  if (nch === 1) data = [ch[1], ch[1], ch[0]];
+  let fs = null;
+  if (timeCol) {
+    const d = [];
+    for (let i = 1; i < n; i++) d.push(good[i][0] - good[i - 1][0]);
+    d.sort((a, b) => a - b);
+    const med = d[d.length >> 1];
+    if (med > 0) fs = med >= 1 ? 1000 / med : 1 / med;
+  }
+  return { ch: data, n, fs, nch };
+}
+function buildCsv() {
+  const msg = $('csvMsg');
+  if (!rawCsv) return;
+  const k = { ms2: 100, g: 980.665, gal: 1 }[$('unit').value];
+  let fsIn = parseFloat($('csvFs').value);
+  if (!(fsIn > 0)) fsIn = rawCsv.fs || 100;
+  const n = rawCsv.n, ratio = fsIn / FS;
+  const outLen = ratio > 1.5 ? Math.floor(n / ratio) : Math.floor((n - 1) / ratio) + 1;
+  if (outLen < FS * 5) { csvData = null; csvLen = 0; setMsg(msg, () => t('فایل کوتاه‌تر از ۵ ثانیه است. فایل بلندتری انتخاب کنید یا بسامد نمونه‌برداری را بررسی کنید.')); return; }
+  const out = new Float32Array(outLen * 3);
+  for (let c = 0; c < 3; c++) {
+    const a = rawCsv.ch[c];
+    for (let i = 0; i < outLen; i++) {
+      let v;
+      if (ratio > 1.5) {
+        const s = Math.floor(i * ratio), e = Math.min(n, Math.max(s + 1, Math.floor((i + 1) * ratio)));
+        let sum = 0; for (let j = s; j < e; j++) sum += a[j];
+        v = sum / (e - s);
+      } else {
+        const pos = i * ratio, i0 = Math.floor(pos), i1 = Math.min(n - 1, i0 + 1), f = pos - i0;
+        v = a[i0] * (1 - f) + a[i1] * f;
+      }
+      out[i * 3 + c] = v * k;
+    }
+  }
+  csvData = out; csvLen = outLen; csvPos = 0; csvEnded = false;
+  { const rowsN = rawCsv.n.toLocaleString('en'), nchN = rawCsv.nch, durS = mmss(outLen / FS); setMsg(msg, () => M.csvInfo(rowsN, nchN, durS)); }
+  resetAll(true);
+  running = true; updateRunBtn(); dirty = true;
+}
+function loadFile(file) {
+  const rd = new FileReader();
+  rd.onload = () => {
+    const p = parseCsv(String(rd.result || ''));
+    if (!p) { setMsg($('csvMsg'), () => t('هیچ ردیف عددی در فایل پیدا نشد.')); rawCsv = null; csvData = null; csvLen = 0; return; }
+    rawCsv = p;
+    if (p.fs) $('csvFs').value = Math.round(p.fs * 100) / 100;
+    buildCsv();
+  };
+  rd.onerror = () => { setMsg($('csvMsg'), () => t('خواندن فایل ممکن نشد.')); };
+  rd.readAsText(file);
+}
+
+// ---------- reset / source ----------
+function resetAll(clearEvents) {
+  stopSiren(); sirenMuted = false;
+  for (const b of buf) b.fill(0);
+  magBuf.fill(0); ratioBuf.fill(0); flag.fill(0); spec.fill(0);
+  total = 0; nSamp = 0; sta = 0; lta = 0; ratioNow = 1; trig = false; ev = null;
+  hp.fill(0); prev.fill(0); hpInit = false; quakes.length = 0;
+  scale = 0.4; specScale = 0.1; lastFft = 0; acc = 0; csvPos = 0; csvEnded = false;
+  if (clearEvents) { events.length = 0; renderEvents(); }
+}
+function prefillSim() {
+  resetAll(true);
+  simQuake(3.9, 600);
+  silent = true;
+  for (let i = 0; i < 2200; i++) { const s = simSample(); step(s[0], s[1], s[2]); }
+  silent = false;
+  fftUpdate(); lastFft = total;
+}
+function setSource(s) {
+  src = s;
+  document.querySelectorAll('#srcSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.src === s)));
+  for (const p of ['sim', 'sensor', 'csv']) $('panel-' + p).hidden = p !== s;
+  if (s !== 'sensor' && sensorListening) { window.removeEventListener('devicemotion', onMotion); sensorListening = false; }
+  if (s === 'sim') { prefillSim(); running = true; }
+  else if (s === 'sensor') { sensorLatest = null; resetAll(true); running = true; }
+  else { resetAll(true); running = !!csvLen; if (csvLen) csvPos = 0; }
+  updateRunBtn(); dirty = true;
+}
+function updateRunBtn() {
+  const b = $('runBtn');
+  b.textContent = (src === 'csv' && csvEnded) ? t('پخش دوباره') : running ? t('توقف') : t('ادامه');
+  b.disabled = (src === 'csv' && !csvLen);
+}
+
+// ---------- generation ----------
+function generate(dt) {
+  const speed = src === 'csv' ? parseInt($('speed').value, 10) || 1 : 1;
+  acc += dt * FS * speed;
+  let n = Math.floor(acc); acc -= n; n = Math.min(n, 2500);
+  for (let i = 0; i < n; i++) {
+    if (src === 'sim') { const s = simSample(); step(s[0], s[1], s[2]); }
+    else if (src === 'sensor') { if (!sensorLatest) break; step(sensorLatest[0], sensorLatest[1], sensorLatest[2]); }
+    else {
+      if (!csvLen) break;
+      if (csvPos >= csvLen) { if (trig) finishEvent(); csvEnded = true; running = false; updateRunBtn(); break; }
+      const o = csvPos * 3; csvPos++;
+      step(csvData[o], csvData[o + 1], csvData[o + 2]);
+    }
+  }
+  if (total - lastFft >= 10) { fftUpdate(); lastFft = total; }
+}
+
+// ---------- drawing ----------
+const cv = [0, 1, 2, 3, 4].map(i => $('c' + i));
+const cx = cv.map(c => c.getContext('2d'));
+let dpr = 1, C = {};
+let colMin = [new Float32Array(0), new Float32Array(0), new Float32Array(0)], colMax = [new Float32Array(0), new Float32Array(0), new Float32Array(0)];
+let colHas = new Uint8Array(0), colFlag = new Uint8Array(0), colRatio = new Float32Array(0);
+function readColors() {
+  const s = getComputedStyle(document.documentElement), g = n => s.getPropertyValue(n).trim();
+  C = { paper: g('--paper'), grid: g('--grid'), gridS: g('--grid-strong'), trace: g('--trace'), alert: g('--alert'), ink2: g('--ink-2') };
+  dirty = true;
+}
+function fitAll() {
+  dpr = Math.min(3, window.devicePixelRatio || 1);
+  for (const c of cv) {
+    const r = c.getBoundingClientRect();
+    c.width = Math.max(10, Math.round(r.width * dpr)); c.height = Math.max(10, Math.round(r.height * dpr));
+  }
+  dirty = true;
+}
+function computeColumns(W) {
+  if (colHas.length !== W) {
+    colMin = [0, 1, 2].map(() => new Float32Array(W)); colMax = [0, 1, 2].map(() => new Float32Array(W));
+    colHas = new Uint8Array(W); colFlag = new Uint8Array(W); colRatio = new Float32Array(W);
+  }
+  let peak = 0;
+  const mn = [0, 0, 0], mx = [0, 0, 0];
+  for (let x = 0; x < W; x++) {
+    const j0 = Math.floor(x * N / W), j1 = Math.max(j0 + 1, Math.floor((x + 1) * N / W));
+    let has = 0, fl = 0, rt = 0;
+    mn[0] = mn[1] = mn[2] = 1e9; mx[0] = mx[1] = mx[2] = -1e9;
+    for (let j = j0; j < j1; j++) {
+      const ab = total - N + j; if (ab < 0) continue;
+      const id = ab % N; has = 1;
+      for (let c = 0; c < 3; c++) { const v = buf[c][id]; if (v < mn[c]) mn[c] = v; if (v > mx[c]) mx[c] = v; }
+      if (flag[id]) fl = 1;
+      if (ratioBuf[id] > rt) rt = ratioBuf[id];
+    }
+    colHas[x] = has; colFlag[x] = fl; colRatio[x] = rt;
+    if (has) for (let c = 0; c < 3; c++) {
+      colMin[c][x] = mn[c]; colMax[c][x] = mx[c];
+      const a = Math.max(Math.abs(mn[c]), Math.abs(mx[c])); if (a > peak) peak = a;
+    }
+  }
+  const target = Math.max(0.4, peak * 1.15);
+  if (target > scale) scale = target; else scale += (target - scale) * 0.04;
+}
+function gridV(g, W, H, d) {
+  g.lineWidth = d;
+  for (let k = 0; k <= 12; k++) {
+    const x = Math.min(W - d / 2, Math.max(d / 2, Math.round(W - k * W / 12)));
+    g.strokeStyle = k % 2 === 0 ? C.gridS : C.grid;
+    g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke();
+  }
+}
+function bands(g, W, H) {
+  g.globalAlpha = 0.13; g.fillStyle = C.alert;
+  let s = -1;
+  for (let x = 0; x <= W; x++) {
+    const f = x < W && colFlag[x];
+    if (f && s < 0) s = x;
+    if (!f && s >= 0) { g.fillRect(s, 0, x - s, H); s = -1; }
+  }
+  g.globalAlpha = 1;
+}
+function drawChannel(c) {
+  const cvs = cv[c], g = cx[c], W = cvs.width, H = cvs.height, d = dpr;
+  g.fillStyle = C.paper; g.fillRect(0, 0, W, H);
+  gridV(g, W, H, d);
+  g.lineWidth = d;
+  const mid = H / 2, amp = H / 2 - 5 * d;
+  g.strokeStyle = C.grid; g.beginPath(); g.moveTo(0, mid - amp / 2); g.lineTo(W, mid - amp / 2); g.moveTo(0, mid + amp / 2); g.lineTo(W, mid + amp / 2); g.stroke();
+  g.strokeStyle = C.gridS; g.beginPath(); g.moveTo(0, mid); g.lineTo(W, mid); g.stroke();
+  bands(g, W, H);
+  g.strokeStyle = C.trace; g.lineWidth = 1.3 * d; g.beginPath();
+  for (let x = 0; x < W; x++) {
+    if (!colHas[x]) continue;
+    const y1 = mid - colMax[c][x] / scale * amp;
+    let y2 = mid - colMin[c][x] / scale * amp;
+    if (y2 - y1 < 1.2 * d) y2 = y1 + 1.2 * d;
+    g.moveTo(x + 0.5, y1); g.lineTo(x + 0.5, y2);
+  }
+  g.stroke();
+  g.fillStyle = C.ink2; g.font = `500 ${11 * d}px "IBM Plex Mono", monospace`;
+  g.textAlign = 'left'; g.textBaseline = 'top';
+  g.fillText(['Z', 'Y', 'X'][c], 7 * d, 5 * d);
+  if (c === 0) { g.textAlign = 'right'; g.fillText('±' + scale.toFixed(2) + ' gal', W - 7 * d, 5 * d); }
+}
+function drawRatio() {
+  const g = cx[3], W = cv[3].width, H = cv[3].height, d = dpr;
+  g.fillStyle = C.paper; g.fillRect(0, 0, W, H);
+  gridV(g, W, H, d);
+  bands(g, W, H);
+  const yr = r => H - 4 * d - Math.min(r, 10) / 10 * (H - 10 * d);
+  g.strokeStyle = C.alert; g.lineWidth = d; g.setLineDash([4 * d, 4 * d]);
+  g.beginPath(); g.moveTo(0, yr(thr)); g.lineTo(W, yr(thr)); g.stroke(); g.setLineDash([]);
+  g.strokeStyle = C.trace; g.lineWidth = 1.3 * d; g.beginPath();
+  let started = false;
+  for (let x = 0; x < W; x++) {
+    if (!colHas[x]) continue;
+    const y = yr(colRatio[x]);
+    if (!started) { g.moveTo(x, y); started = true; } else g.lineTo(x, y);
+  }
+  g.stroke();
+  g.fillStyle = C.ink2; g.font = `500 ${11 * d}px "IBM Plex Mono", monospace`; g.textBaseline = 'top'; g.textAlign = 'left';
+  g.fillText('STA/LTA', 7 * d, 4 * d);
+  g.textAlign = 'right'; g.fillText(t('آستانه') + ' ' + thr.toFixed(1), W - 7 * d, 4 * d);
+}
+function drawSpec() {
+  const g = cx[4], W = cv[4].width, H = cv[4].height, d = dpr;
+  g.fillStyle = C.paper; g.fillRect(0, 0, W, H);
+  g.lineWidth = d;
+  for (let k = 0; k <= 5; k++) {
+    const x = Math.min(W - d / 2, Math.max(d / 2, Math.round(k / 5 * W)));
+    g.strokeStyle = k % 1 === 0 ? C.gridS : C.grid;
+    g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke();
+  }
+  let pk = 0; for (let k = 1; k < NB; k++) if (spec[k] > pk) pk = spec[k];
+  const target = Math.max(0.1, pk * 1.15);
+  if (target > specScale) specScale = target; else specScale += (target - specScale) * 0.05;
+  const dom = argmaxRange(spec);
+  const bw = W / NB;
+  for (let k = 1; k < NB; k++) {
+    const h = Math.min(1, spec[k] / specScale) * (H - 22 * d);
+    if (h < 0.5) continue;
+    g.fillStyle = (k === dom.k && dom.v > 0.03) ? C.alert : C.trace;
+    g.globalAlpha = (k === dom.k && dom.v > 0.03) ? 1 : 0.8;
+    g.fillRect(k * bw, H - h, Math.max(1, bw - 0.5 * d), h);
+  }
+  g.globalAlpha = 1;
+  g.fillStyle = C.ink2; g.font = `500 ${11 * d}px "IBM Plex Mono", monospace`; g.textBaseline = 'top'; g.textAlign = 'right';
+  g.fillText(specScale.toFixed(2) + ' gal', W - 7 * d, 4 * d);
+}
+function draw() {
+  computeColumns(cv[0].width);
+  for (let c = 0; c < 3; c++) drawChannel(c);
+  drawRatio(); drawSpec();
+}
+
+// ---------- readouts / table ----------
+function updateUI() {
+  $('vRms').textContent = fmt(Math.sqrt(sta));
+  let pk = 0; const n = Math.min(total, N); for (let i = 0; i < n; i++) if (magBuf[i] > pk) pk = magBuf[i];
+  $('vPeak').textContent = fmt(pk);
+  $('vRatio').textContent = ratioNow.toFixed(1);
+  const dom = argmaxRange(spec);
+  $('vFreq').textContent = dom.k > 0 && dom.v > 0.03 ? (dom.k * FS / FFT_N).toFixed(1) : '—';
+  $('scaleNote').textContent = t('مقیاس کامل') + ' ±' + scale.toFixed(2) + ' gal · ' + FS + ' Hz';
+  let s = 'quiet', tx = t('آرام');
+  if (src === 'sensor' && !sensorLatest) { s = 'wait'; tx = t('در انتظار حسگر'); }
+  else if (src === 'csv' && !csvLen) { s = 'wait'; tx = t('فایلی انتخاب نشده'); }
+  else if (!running) { s = 'paused'; tx = csvEnded ? t('پایان فایل') : t('متوقف'); }
+  else if (trig) { s = 'event'; tx = t('رویداد لرزه‌ای'); }
+  const st = $('state'); if (st.dataset.s !== s) st.dataset.s = s;
+  if ($('stateText').textContent !== tx) $('stateText').textContent = tx;
+  $('alarmBar').hidden = !(trig && running);
+}
+function renderEvents() {
+  const tb = $('evBody'); tb.textContent = '';
+  if (!events.length) {
+    const tr = document.createElement('tr'), td = document.createElement('td');
+    td.colSpan = 5; td.className = 'empty';
+    td.textContent = t('هنوز رویدادی ثبت نشده است. «زلزله آزمایشی» را بزنید یا فایل داده بارگذاری کنید.');
+    tr.appendChild(td); tb.appendChild(tr); return;
+  }
+  for (const e of events) {
+    const tr = document.createElement('tr');
+    const cells = [mmss(e.t), fmt(e.pga), e.mmi, e.f == null ? '—' : e.f.toFixed(1), e.dur.toFixed(1)];
+    for (const v of cells) { const td = document.createElement('td'); td.textContent = v; td.dir = 'ltr'; tr.appendChild(td); }
+    tb.appendChild(tr);
+  }
+}
+
+// ---------- loop ----------
+let last = performance.now(), lastUI = 0;
+function frame(now) {
+  const dt = Math.min(0.25, (now - last) / 1000); last = now;
+  if (running) generate(dt);
+  if (running || dirty) { draw(); dirty = false; }
+  if (now - lastUI > 120) { updateUI(); lastUI = now; }
+  requestAnimationFrame(frame);
+}
+
+// ---------- wiring ----------
+document.querySelectorAll('#srcSeg button').forEach(b => b.addEventListener('click', () => setSource(b.dataset.src)));
+$('runBtn').addEventListener('click', () => {
+  if (src === 'csv') {
+    if (!csvLen) return;
+    if (csvEnded) { resetAll(true); running = true; }
+    else running = !running;
+  } else running = !running;
+  if (!running) stopSiren();
+  updateRunBtn(); dirty = true;
+});
+$('muteBtn').addEventListener('click', () => { sirenMuted = true; stopSiren(); });
+$('sirenTest').addEventListener('click', () => {
+  sirenMuted = false; startSiren();
+  setTimeout(() => { if (!trig) stopSiren(); }, 1500);
+});
+$('mag').addEventListener('input', e => { $('magOut').textContent = Number(e.target.value).toFixed(1); });
+$('quakeBtn').addEventListener('click', () => { if (src === 'sim') { simQuake(parseFloat($('mag').value)); running = true; updateRunBtn(); } });
+$('sensorBtn').addEventListener('click', enableSensor);
+$('csvFile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) loadFile(f); });
+$('unit').addEventListener('change', buildCsv);
+$('csvFs').addEventListener('change', buildCsv);
+$('thr').addEventListener('input', e => { thr = parseFloat(e.target.value); $('thrOut').textContent = thr.toFixed(1); dirty = true; });
+$('minAmp').addEventListener('input', e => { minAmp = parseFloat(e.target.value); $('minOut').textContent = minAmp.toFixed(2); });
+
+(() => {
+  const b = $('exportBtn'); b.hidden = false;
+  b.addEventListener('click', () => {
+    const rows = ['time_s,pga_gal,mmi_approx,dominant_hz,duration_s'];
+    for (const e of events.slice().reverse()) rows.push([e.t.toFixed(1), e.pga.toFixed(3), e.mmi, e.f == null ? '' : e.f.toFixed(2), e.dur.toFixed(1)].join(','));
+    if (rows.length === 1) return;
+    const url = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'zamin-kav-events.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  });
+})();
+
+window.I18N.onChange(() => {
+  renderEvents(); updateRunBtn(); lastUI = 0; dirty = true;
+  for (const id of ['sensorMsg', 'csvMsg']) { const el = $(id); if (el._msgFn) el.textContent = el._msgFn(); }
+});
+readColors();
+new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors); } catch (err) { /* older browsers */ }
+if (window.ResizeObserver) new ResizeObserver(fitAll).observe($('paper')); else window.addEventListener('resize', fitAll);
+fitAll();
+setSource('sim');
+requestAnimationFrame(frame);
+})();
+</script>
+
+<script>
+(() => {
+'use strict';
+const cv = document.getElementById('sampleCv');
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const FS = 50, LEN = 40 * FS, sig = new Float32Array(LEN);
+(function build() {
+  const r = rng(7);
+  const g = () => { let u = 0; while (u === 0) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(6.283 * r()); };
+  for (let i = 0; i < LEN; i++) {
+    const t = i / FS; let v = 0.03 * g();
+    const tp = t - 6, ts = t - 11;
+    if (tp > 0) v += 0.2 * (1 - Math.exp(-tp / 0.2)) * Math.exp(-tp / 0.9) * Math.sin(6.283 * 9 * tp);
+    if (ts > 0) { const env = (1 - Math.exp(-ts / 0.4)) * Math.exp(-ts / 5); v += env * (0.6 * Math.sin(6.283 * 3.1 * ts) + 0.4 * Math.sin(6.283 * 4.5 * ts + 1.3) + 0.2 * g()); }
+    sig[i] = v;
+  }
+})();
+function draw() {
+  const dpr = Math.min(3, window.devicePixelRatio || 1), r = cv.getBoundingClientRect();
+  if (!r.width) return;
+  cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  const g = cv.getContext('2d'), W = cv.width, H = cv.height, d = dpr;
+  const s = getComputedStyle(document.documentElement), c = n => s.getPropertyValue(n).trim();
+  g.fillStyle = c('--paper'); g.fillRect(0, 0, W, H);
+  g.lineWidth = d;
+  for (let k = 0; k <= 8; k++) { const x = Math.min(W - d / 2, Math.max(d / 2, Math.round(k / 8 * W))); g.strokeStyle = k % 2 ? c('--grid') : c('--grid-strong'); g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+  const mid = H / 2, amp = H / 2 - 18 * d;
+  g.strokeStyle = c('--grid-strong'); g.beginPath(); g.moveTo(0, mid); g.lineTo(W, mid); g.stroke();
+  g.strokeStyle = c('--trace'); g.lineWidth = 1.3 * d; g.beginPath();
+  for (let x = 0; x < W; x++) {
+    const j0 = Math.floor(x * LEN / W), j1 = Math.max(j0 + 1, Math.floor((x + 1) * LEN / W));
+    let mn = 1e9, mx = -1e9;
+    for (let j = j0; j < j1; j++) { if (sig[j] < mn) mn = sig[j]; if (sig[j] > mx) mx = sig[j]; }
+    const y1 = mid - mx * amp, y2 = Math.max(mid - mn * amp, y1 + 1.2 * d);
+    g.moveTo(x + 0.5, y1); g.lineTo(x + 0.5, y2);
+  }
+  g.stroke();
+  g.strokeStyle = c('--alert'); g.fillStyle = c('--alert'); g.lineWidth = d; g.setLineDash([4 * d, 4 * d]);
+  g.font = '500 ' + (12 * d) + 'px "IBM Plex Mono", monospace'; g.textBaseline = 'top'; g.textAlign = 'left';
+  for (const [t, label] of [[6, 'P'], [11, 'S']]) {
+    const x = Math.round(t / 40 * W); g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); g.fillText(label, x + 5 * d, 5 * d);
+  }
+  g.setLineDash([]);
+}
+const enter = document.getElementById('enterBtn');
+enter.addEventListener('click', () => {
+  document.getElementById('promo').hidden = true;
+  document.getElementById('app').hidden = false;
+  window.scrollTo(0, 0);
+});
+draw();
+window.addEventListener('resize', draw);
+try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw); } catch (e) {}
+new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+})();
+</script>
+
+</body>
+</html>
